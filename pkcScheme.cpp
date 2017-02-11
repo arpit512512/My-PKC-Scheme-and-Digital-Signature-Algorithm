@@ -1,0 +1,206 @@
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#include <fstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <pari/pari.h>
+//#include <pari.h>
+#include <time.h>
+#include <string.h>
+#define PARI_OLD_NAMES
+#include <iostream>
+
+using namespace std;
+
+// Some functions for random sample generation
+double Uniform(void) {
+	return ((double)rand()+1.0)/((double)RAND_MAX+2.0);
+} 
+/*********************************
+Standard Normal Distribution: use Box-Muller method
+**********************************/
+double Normal(void) {
+	return sqrt( -log(Uniform())*2.0 ) * sin( 2.0*M_PI*Uniform() );
+}
+/*******************************
+Gaussian Distribution
+********************************/
+double Gauss(double mu, double sigma) {   
+	double z=sqrt( -2.0*log(Uniform()) ) * sin( 2.0*M_PI*Uniform() );
+	return mu + sigma*z;
+}
+/********************************************************************
+Error sampling function
+GEN Sample(
+	int n			: polynomial dimension
+	double sigma	: standard deviation parameter 
+
+Contents :  Create n dimension random number vector(signed integer) based on Gaussian distribution (0, σ)
+********************************************************************/
+GEN Sample(int n, double sigma)
+{
+	GEN ret	= cgetg(n + 1, t_VEC);
+	double z;
+	int i;
+	
+	for (i = 1; i <= n; i++) {
+		z = Gauss(0, sigma); z = abs(round(z)); /*absolute value of Gaussian distribution */
+		ret[i] = (long) stoi((long) z);
+	}
+	
+	return ret;
+}
+
+GEN randomElement(int n){
+	GEN ret;
+	ret = cgetg(n + 1, t_VEC);
+	for(int i=0; i<n; i++){
+		gel(ret, i+1) = stoi(rand());
+	}
+	//pari_printf("ret: %s\n", GENtostr(ret));
+	return ret;
+}
+
+GEN randomElementredbyt(int n, GEN t){
+	GEN ret;
+	ret = cgetg(n + 1, t_VEC);
+	for(int i=0; i<n; i++){
+		gel(ret, i+1) = lift(gmodulo(stoi(rand()), t));
+	}
+	//pari_printf("ret: %s\n", GENtostr(ret));
+	return ret;
+}
+
+
+int main(){
+	pari_init(3000000000,2);
+	//GEN a;
+	//a = gadd(stoi(45), stoi(1));
+	//pari_printf("%s\n", GENtostr(a));
+	//cout<<rand()<<" "<<rand()<<endl;
+	GEN n, q, t, bit, a, b, c, d, e, f;
+	bit = powii(stoi(2), stoi(256));
+	cout<<GENtostr(bit)<<endl;
+	a = nextprime(bit);
+	b = nextprime(gadd(a, stoi(1)));
+	GEN temp, temp1, temp2;
+	temp = gmul(a, b);
+	temp = gmul(stoi(2), temp);
+	//cout<<isprime(stoi(7))<<endl;
+	while(!isprime(gadd(stoi(1), temp))){
+		//cout<<GENtostr(a)<<endl;
+		a = nextprime(gadd(b, stoi(1)));
+		b = nextprime(gadd(a, stoi(1)));
+		temp = gmul(a, b);
+		temp = gmul(stoi(2), temp);
+	}
+	e = gadd(stoi(1), temp);
+	cout<<GENtostr(e)<<endl;
+	c = nextprime(gadd(b, stoi(1)));
+	d = nextprime(gadd(c, stoi(1)));
+	temp = gmul(c, d);
+	temp = gmul(stoi(2), temp);
+	while(!isprime(gadd(stoi(1), temp))){
+		//cout<<GENtostr(a)<<endl;
+		c = nextprime(gadd(d, stoi(1)));
+		d = nextprime(gadd(c, stoi(1)));
+		temp = gmul(c, d);
+		temp = gmul(stoi(2), temp);
+	}
+	f = gadd(stoi(1), temp);
+	cout<<GENtostr(f)<<"\n";
+	cout<<isprime(e)<<"    "<<isprime(f)<<endl;
+	GEN eminus, elorder1, elorder2, fminus;
+	eminus = gsub(e, stoi(1));
+	fminus = gsub(f, stoi(1));
+	n = gmul(e, f);
+	GEN g = stoi(200000);
+	temp = gsub(f, stoi(1));
+	temp1 = Fp_pow(g, temp, n);
+	cout<<GENtostr(temp1)<<endl;
+	elorder1 = temp1;
+	cout<<GENtostr(Fp_pow(temp1, eminus, n))<<endl;
+	g = gadd(g, stoi(1));
+	temp = gmul(stoi(2), fminus);
+	temp = gmul(temp, a);
+	while(1){
+		temp1 = Fp_pow(g, temp, n);
+		elorder2 = temp1;
+		cout<<GENtostr(temp1)<<endl;
+		temp2 = gmul(a,b);
+		temp2 = gmul(temp2, stoi(2));
+		if(gcmp(Fp_pow(temp1, b, n), stoi(1))==0)
+			break;
+		g = gadd(g, stoi(1));
+	}
+	cout<<GENtostr(g)<<endl;
+	GEN exp, c1, alpha, beta, m, k;
+	
+	k = stoi(5);
+	alpha = elorder1;
+	beta = Fp_pow(alpha, gadd(b, stoi(1)), n);
+	GEN betak, alpha2k;
+	betak = Fp_pow(beta, k, n);
+	alpha2k = Fp_pow(alpha, gmul(stoi(2), k), n);
+	clock_t start, end;
+	cout<<GENtostr(beta)<<endl;
+	cout<<"Looping\n";
+	start = clock();
+	int noofmessages = 40000;
+	c1 = powii(stoi(2), stoi(250));
+	for(int i=0; i<noofmessages; i++){
+		//c1 = a;
+	m = stoi(rand());
+	exp = Fp_pow(elorder2, c1, n);
+	GEN delta, gamma;
+	delta = betak;
+	delta = gmul(delta, exp);
+	delta = gmul(delta, m);
+	delta = lift(gmodulo(delta, n));
+	gamma = gmul(exp, exp);
+	temp = alpha2k;
+	gamma = gmul(gamma, temp);
+	gamma = lift(gmodulo(gamma, n));
+	GEN gammainv;
+	//cout<<"Finding inverse\n";
+	gammainv = ginvmod(gamma, n);
+	//cout<<GENtostr(gmodulo(gmul(gammainv, gamma), n))<<endl;
+	temp = gmul(delta, delta);
+	temp = gmul(temp, gammainv);
+	temp = lift(gmodulo(temp, n));
+	//cout<<GENtostr(n)<<endl<<"Answer\n";
+	//temp1 = Fp_sqrt(temp, e);
+	temp2 = Fp_sqrt(lift(gmodulo(temp, f)), f);
+	temp1 = Fp_sqrt(lift(gmodulo(temp, e)), e);
+	//cout<<GENtostr(temp2)<<"  "<<GENtostr(m)<<endl;
+
+	//GEN fac1, fac2, fac;
+	//fac1 = cgetg(3, t_COL);
+	//fac2 = cgetg(3, t_COL);
+	//gel(fac1, 1) = e;
+	//gel(fac1, 2) = f;
+	//gel(fac2, 1) = stoi(1);
+	//gel(fac2, 2) = stoi(1);
+	//fac = cgetg(3, t_MAT);
+	//gel(fac, 1) = fac1;
+	//gel(fac, 2) = fac2;
+	//temp = Zn_sqrt(temp, fac);
+	//cout<<GENtostr(temp)<<endl<<GENtostr(temp1)<<endl<<GENtostr(temp2)<<endl;
+	//cout<<GENtostr(gmodulo(e, stoi(4)))<<"    "<<GENtostr(gmodulo(f, stoi(4)))<<endl;
+	}
+	end = clock();
+	int timetaken = ((end - start)/CLOCKS_PER_SEC);
+	cout<<timetaken<<" seconds\n"<<(float)timetaken/(float)noofmessages<<" seconds per message"<<endl;
+	cout<<bit_prec(n)<<endl;
+	//while(1){
+	//	if(gcmp(Fp_pow(g, gmul(eminus, gmul(c,d)), n), stoi(1))==0)
+	//		break;
+	//	g = gadd(g, stoi(1));
+	//	cout<<GENtostr(g)<<endl;
+	//}
+	//cout<<GENtostr(g)<<endl;
+	pari_close();
+	return 0;
+}
